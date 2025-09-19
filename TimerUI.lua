@@ -199,34 +199,11 @@ function TimerUI:CreateBroadcastDropdown()
     self:UpdateBroadcastOptions()
 end
 
--- 创建自动播报开关
+-- 创建自动播报开关（按钮样式）
 function TimerUI:CreateAutoBroadcastSwitch()
     if not self.frame then
         return
     end
-    
-    -- 播报标签
-    local label = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -8)
-    label:SetText("播报:")
-    label:SetTextColor(1, 1, 1, 1)
-    
-    -- 创建开关按钮
-    local switchButton = CreateFrame("Button", nil, self.frame)
-    switchButton:SetSize(40, 18)
-    switchButton:SetPoint("LEFT", label, "RIGHT", 5, 0)
-    
-    -- 开关背景
-    local switchBg = switchButton:CreateTexture(nil, "BACKGROUND")
-    switchBg:SetAllPoints()
-    switchBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
-    switchButton.background = switchBg
-    
-    -- 开关滑块
-    local slider = switchButton:CreateTexture(nil, "OVERLAY")
-    slider:SetSize(16, 16)
-    slider:SetColorTexture(1, 1, 1, 1)
-    switchButton.slider = slider
     
     -- 获取默认状态（默认开启）
     local isEnabled = addon.Config:Get("autoBroadcast.enabled")
@@ -235,25 +212,34 @@ function TimerUI:CreateAutoBroadcastSwitch()
         addon.Config:Set("autoBroadcast.enabled", true)
     end
     
-    -- 更新开关外观
-    local function updateSwitchAppearance()
+    -- 创建按钮样式的开关，使用游戏内置按钮样式
+    local switchButton = CreateFrame("Button", nil, self.frame, "UIPanelButtonTemplate")
+    switchButton:SetSize(80, 22) -- 稍微宽一些以容纳文字
+    switchButton:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -5)
+    
+    -- 调整字体大小
+    local font = switchButton:GetFontString()
+    if font then
+        font:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    end
+    
+    -- 更新按钮文字和外观
+    local function updateButtonAppearance()
         if isEnabled then
-            switchBg:SetColorTexture(0.2, 0.8, 0.2, 0.8) -- 绿色背景
-            slider:SetPoint("RIGHT", switchButton, "RIGHT", -2, 0)
+            switchButton:SetText("播报ON")
         else
-            switchBg:SetColorTexture(0.6, 0.2, 0.2, 0.8) -- 红色背景
-            slider:SetPoint("LEFT", switchButton, "LEFT", 2, 0)
+            switchButton:SetText("播报OFF")
         end
     end
     
     -- 初始化外观
-    updateSwitchAppearance()
+    updateButtonAppearance()
     
     -- 点击事件
     switchButton:SetScript("OnClick", function()
         isEnabled = not isEnabled
         addon.Config:Set("autoBroadcast.enabled", isEnabled)
-        updateSwitchAppearance()
+        updateButtonAppearance()
         
         local status = isEnabled and "开启" or "关闭"
         addon.Utils:Info("自动播报已" .. status)
@@ -273,7 +259,6 @@ function TimerUI:CreateAutoBroadcastSwitch()
     end)
     
     self.autoBroadcastSwitch = switchButton
-    self.autoBroadcastLabel = label
 end
 
 -- 自动播报功能

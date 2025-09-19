@@ -349,15 +349,18 @@ function TimerUI:BroadcastToChannel(channelInfo)
         return
     end
     
-    -- 构建广播消息
+    -- 构建广播消息（每个地图单独占一行）
     local timerStrings = {}
     for _, timer in ipairs(allTimers) do
         local remaining = timer.duration - (GetTime() - timer.startTime)
         local timeText = self:FormatBroadcastTime(remaining)
-        table.insert(timerStrings, addon.L("BROADCAST_TIMER_FORMAT", timer.zoneName, timeText))
+        -- 新格式：[16:20]多恩岛(next:12m30s)
+        local triggerTime = timer.triggerTime or ""
+        local lineText = string.format("[%s]%s(next:%s)", triggerTime, timer.zoneName, timeText)
+        table.insert(timerStrings, lineText)
     end
     
-    local message = addon.L("BROADCAST_MESSAGE_FORMAT", table.concat(timerStrings, ", "))
+    local message = table.concat(timerStrings, "\n") -- 换行分隔
     
     -- 发送消息
     local success = false
@@ -408,13 +411,19 @@ function TimerUI:AddTimer(timerData)
             self.progressBars[oldTimer.id] = nil
         end
         
-        -- 更新计时器数据（保持在相同位置）
+        -- 更新计时器数据并添加触发时间
+        timerData.triggerTime = date("%H:%M") -- 添加触发时间
+        timerData.startTime = GetTime()
+        timerData.expired = false
+        timerData.id = "timer_" .. GetTime() .. "_" .. math.random(1000, 9999)
+        
         self.timers[existingTimerIndex] = timerData
         
         -- 创建新的进度条
         self:CreateProgressBar(timerData)
         
-        -- 重新排列进度条
+        -- 按剩余时间排序并重新排列进度条
+        self:SortTimersByRemainingTime()
         self:RearrangeProgressBars()
         self:UpdateFrameSize()
         
@@ -428,9 +437,19 @@ function TimerUI:AddTimer(timerData)
             return false
         end
         
+        -- 设置计时器数据并添加触发时间
+        timerData.triggerTime = date("%H:%M") -- 添加触发时间
+        timerData.startTime = GetTime()
+        timerData.expired = false
+        timerData.id = "timer_" .. GetTime() .. "_" .. math.random(1000, 9999)
+        
         -- 添加新地图的计时器
         table.insert(self.timers, timerData)
         self:CreateProgressBar(timerData)
+        
+        -- 按剩余时间排序
+        self:SortTimersByRemainingTime()
+        self:RearrangeProgressBars()
         self:UpdateFrameSize()
         
         addon.Utils:Debug(addon.L("TIMER_ADDED", timerData.zoneName, timerData.triggerType))
@@ -507,9 +526,16 @@ function TimerUI:CreateProgressBar(timerData)
     bg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
     bar.background = bg
     
-    -- 进度条文本
+    -- 触发时间显示（黄色文本）
+    local triggerTime = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    triggerTime:SetPoint("LEFT", bar, "LEFT", 5, 0)
+    triggerTime:SetTextColor(1, 1, 0, 1) -- 黄色
+    triggerTime:SetText(timerData.triggerTime or "")
+    bar.triggerTime = triggerTime
+    
+    -- 进度条文本（调整位置避免与触发旴间重叠）
     local text = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    text:SetPoint("CENTER")
+    text:SetPoint("CENTER", bar, "CENTER", 15, 0) -- 向右偏移一些
     text:SetTextColor(1, 1, 1, 1)
     bar.text = text
     
@@ -593,6 +619,10 @@ function TimerUI:UpdateTimers()
     if hasExpiredTimers then
         self:CleanupExpiredTimers()
     end
+    
+    -- 按剩余时间重新排序
+    self:SortTimersByRemainingTime()
+    self:RearrangeProgressBars()
 end
 
 -- 更新进度条颜色
@@ -664,6 +694,21 @@ function TimerUI:CleanupExpiredTimers()
         self:RearrangeProgressBars()
         self:UpdateFrameSize()
     end
+end
+
+-- 按剩余时间排序（时间最少的排在最前）
+function TimerUI:SortTimersByRemainingTime()
+    if not self.timers or #self.timers <= 1 then
+        return
+    end
+    
+    local currentTime = GetTime()
+    
+    table.sort(self.timers, function(a, b)
+        local aRemaining = (a.startTime + a.duration) - currentTime
+        local bRemaining = (b.startTime + b.duration) - currentTime
+        return aRemaining < bRemaining -- 小的在前
+    end)
 end
 
 -- 重新排列进度条

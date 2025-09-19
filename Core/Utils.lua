@@ -31,17 +31,17 @@ function addon.Utils:ContainsKeyword(text, keywords)
     return false
 end
 
--- 格式化时间显示 (MM:SS格式)
+-- 格式化时间显示 (MMmSSs格式，与广播格式保持一致)
 function addon.Utils:FormatTime(seconds)
     if seconds < 0 then
         local absSeconds = math.abs(seconds)
         local minutes = math.floor(absSeconds / 60)
         local secs = absSeconds % 60
-        return string.format("-%02d:%02d", minutes, secs)
+        return string.format("-%dm%02ds", minutes, secs)
     else
         local minutes = math.floor(seconds / 60)
         local secs = seconds % 60
-        return string.format("%02d:%02d", minutes, secs)
+        return string.format("%dm%02ds", minutes, secs)
     end
 end
 

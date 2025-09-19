@@ -1154,19 +1154,20 @@ end
 
 -- 创建手动计时器
 function TimerUI:CreateManualTimer(hour, minute, zoneName)
-    -- 计算目标时间
-    local targetTime = hour * 3600 + minute * 60
+    -- 获取当前时间
     local currentTime = date("*t")
     local currentSeconds = currentTime.hour * 3600 + currentTime.min * 60 + currentTime.sec
     
-    -- 计算到目标旴间的秒数（如果是第二天则加上24小时）
-    local timeToTarget = targetTime - currentSeconds
-    if timeToTarget <= 0 then
-        timeToTarget = timeToTarget + 24 * 3600 -- 第二天
+    -- 计算目标时间（输入的时间加上18分12秒）
+    local targetTime = hour * 3600 + minute * 60 + 1092 -- 加上18分12秒
+    
+    -- 如果目标时间小于等于当前时间，则认为是第二天
+    if targetTime <= currentSeconds then
+        targetTime = targetTime + 24 * 3600 -- 第二天
     end
     
-    -- 加上 18分12秒 (1092秒)
-    local totalDuration = timeToTarget + 1092
+    -- 计算剩余时间（这就是倒计时的时长）
+    local totalDuration = targetTime - currentSeconds
     
     -- 创建计时器数据
     local timerData = {

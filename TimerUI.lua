@@ -226,9 +226,9 @@ function TimerUI:CreateAutoBroadcastSwitch()
     -- 更新按钮文字和外观
     local function updateButtonAppearance()
         if isEnabled then
-            switchButton:SetText("播报ON")
+            switchButton:SetText("ON")
         else
-            switchButton:SetText("播报OFF")
+            switchButton:SetText("OFF")
         end
     end
     

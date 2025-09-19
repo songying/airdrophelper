@@ -33,7 +33,7 @@ addon.TIMER_CONFIG = {
 
 -- UI配置
 addon.UI_CONFIG = {
-    FRAME_WIDTH = 280, -- 增加宽度以容纳时间显示
+    FRAME_WIDTH = 300, -- 再增加20像素宽度以完整显示标题
     PROGRESS_BAR_HEIGHT = 20,
     PROGRESS_BAR_SPACING = 2,
     FRAME_PADDING = 10

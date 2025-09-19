@@ -128,10 +128,10 @@ function TimerUI:CreateBroadcastControls()
     
     self.broadcastButton = broadcastButton
     
-    -- 创建 Add 按钮（在左侧与 Send 按钮对应）
+    -- 创建 Add 按钮（在右侧 Send 按钮之前）
     local addButton = CreateFrame("Button", nil, self.frame, "UIPanelButtonTemplate")
     addButton:SetSize(50, 22)
-    addButton:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -5)
+    addButton:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -60, -5) -- 在Send按钮左侧
     addButton:SetText("Add")
     
     -- 调整字体大小
@@ -157,6 +157,9 @@ function TimerUI:CreateBroadcastControls()
     end)
     
     self.addButton = addButton
+    
+    -- 创建自动播报开关（在原来Add按钮位置）
+    self:CreateAutoBroadcastSwitch()
     
     -- 创建下拉框
     self:CreateBroadcastDropdown()
@@ -194,6 +197,118 @@ function TimerUI:CreateBroadcastDropdown()
     
     -- 更新下拉选项
     self:UpdateBroadcastOptions()
+end
+
+-- 创建自动播报开关
+function TimerUI:CreateAutoBroadcastSwitch()
+    if not self.frame then
+        return
+    end
+    
+    -- 播报标签
+    local label = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -8)
+    label:SetText("播报:")
+    label:SetTextColor(1, 1, 1, 1)
+    
+    -- 创建开关按钮
+    local switchButton = CreateFrame("Button", nil, self.frame)
+    switchButton:SetSize(40, 18)
+    switchButton:SetPoint("LEFT", label, "RIGHT", 5, 0)
+    
+    -- 开关背景
+    local switchBg = switchButton:CreateTexture(nil, "BACKGROUND")
+    switchBg:SetAllPoints()
+    switchBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
+    switchButton.background = switchBg
+    
+    -- 开关滑块
+    local slider = switchButton:CreateTexture(nil, "OVERLAY")
+    slider:SetSize(16, 16)
+    slider:SetColorTexture(1, 1, 1, 1)
+    switchButton.slider = slider
+    
+    -- 获取默认状态（默认开启）
+    local isEnabled = addon.Config:Get("autoBroadcast.enabled")
+    if isEnabled == nil then
+        isEnabled = true
+        addon.Config:Set("autoBroadcast.enabled", true)
+    end
+    
+    -- 更新开关外观
+    local function updateSwitchAppearance()
+        if isEnabled then
+            switchBg:SetColorTexture(0.2, 0.8, 0.2, 0.8) -- 绿色背景
+            slider:SetPoint("RIGHT", switchButton, "RIGHT", -2, 0)
+        else
+            switchBg:SetColorTexture(0.6, 0.2, 0.2, 0.8) -- 红色背景
+            slider:SetPoint("LEFT", switchButton, "LEFT", 2, 0)
+        end
+    end
+    
+    -- 初始化外观
+    updateSwitchAppearance()
+    
+    -- 点击事件
+    switchButton:SetScript("OnClick", function()
+        isEnabled = not isEnabled
+        addon.Config:Set("autoBroadcast.enabled", isEnabled)
+        updateSwitchAppearance()
+        
+        local status = isEnabled and "开启" or "关闭"
+        addon.Utils:Info("自动播报已" .. status)
+    end)
+    
+    -- 悬停提示
+    switchButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(switchButton, "ANCHOR_TOP")
+        local tooltip = isEnabled and "点击关闭自动播报" or "点击开启自动播报"
+        GameTooltip:SetText(tooltip)
+        GameTooltip:AddLine("开启时：触发计时器自动发送到团队/小队/说话频道", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    
+    switchButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    
+    self.autoBroadcastSwitch = switchButton
+    self.autoBroadcastLabel = label
+end
+
+-- 自动播报功能
+function TimerUI:AutoBroadcastTimer(timerData)
+    -- 检查是否启用自动播报
+    if not addon.Config:Get("autoBroadcast.enabled") then
+        return
+    end
+    
+    -- 构建播报消息
+    local remaining = timerData.duration
+    local timeText = self:FormatBroadcastTime(remaining)
+    local triggerTime = timerData.triggerTime or ""
+    local message = string.format("[%s]%s(next:%s)", triggerTime, timerData.zoneName, timeText)
+    
+    -- 按优先级尝试发送：团队警报 > 团队 > 小队 > 说话
+    local channels = {
+        {type = "RAID_WARNING", name = "团队警报", condition = function() return UnitInRaid("player") and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) end},
+        {type = "RAID", name = "团队", condition = function() return UnitInRaid("player") end},
+        {type = "PARTY", name = "小队", condition = function() return UnitInParty("player") and not UnitInRaid("player") end},
+        {type = "SAY", name = "说话", condition = function() return true end}
+    }
+    
+    for _, channel in ipairs(channels) do
+        if channel.condition() then
+            local success = addon.Utils:SendChatMessage(message, channel.type)
+            if success then
+                addon.Utils:Debug("自动播报成功发送到: " .. channel.name)
+                return true
+            end
+        end
+    end
+    
+    addon.Utils:Debug("自动播报失败")
+    return false
 end
 
 -- 更新广播选项
@@ -478,6 +593,11 @@ function TimerUI:AddTimer(timerData)
         self:RearrangeProgressBars()
         self:UpdateFrameSize()
         
+        -- 自动播报（仅对非手动计时器）
+        if timerData.triggerType ~= "MANUAL" then
+            self:AutoBroadcastTimer(timerData)
+        end
+        
         addon.Utils:Debug(addon.L("TIMER_UPDATED", timerData.zoneName, timerData.triggerType))
         return true
     else
@@ -504,6 +624,11 @@ function TimerUI:AddTimer(timerData)
         self:SortTimersByRemainingTime()
         self:RearrangeProgressBars()
         self:UpdateFrameSize()
+        
+        -- 自动播报（仅对非手动计时器）
+        if timerData.triggerType ~= "MANUAL" then
+            self:AutoBroadcastTimer(timerData)
+        end
         
         addon.Utils:Debug(addon.L("TIMER_ADDED", timerData.zoneName, timerData.triggerType))
         return true

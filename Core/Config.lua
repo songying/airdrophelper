@@ -37,6 +37,9 @@ local defaultConfig = {
     npcKeywords = {
         ["魯夫厄斯"] = { "我在這附近", "附近有一箱資源", "機不可失", "附近似乎有寶藏" },
         ["瑪莉希亞"] = { "附近有資源", "準備戰鬥" }
+    },
+    autoBroadcast = {
+        enabled = true -- 默认开启自动播报
     }
 }
 

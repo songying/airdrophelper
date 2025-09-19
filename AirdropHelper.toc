@@ -1,0 +1,23 @@
+## Interface: 110200
+## Title: AirdropHelper
+## Notes: 魔兽世界空投箱子监控助手 - 监控NPC对话和空投箱子，提供倒计时提醒
+## Author: Alvin
+## Version: 1.0.0
+## SavedVariables: AirdropHelperDB
+## OptionalDeps: HandyNotes
+
+# Core files
+Core\Constants.lua
+Core\Config.lua
+Core\Utils.lua
+
+# Localization
+Localization.lua
+
+# Main functionality
+AirdropHelper.lua
+NPCMonitor.lua
+NotificationSystem.lua
+TimerUI.lua
+AirdropDetector.lua
+SyncManager.lua

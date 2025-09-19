@@ -371,11 +371,15 @@ function TimerUI:BroadcastToChannel(channelInfo)
     -- 检查是否有任何计时器（包括已过期的负数计时器）
     local allTimers = {}
     for _, timer in ipairs(self.timers) do
+        -- 调试输出：显示所有计时器信息
+        addon.Utils:Debug("广播检查计时器: " .. (timer.zoneName or "Unknown") .. ", 类型: " .. (timer.triggerType or "Unknown") .. ", 触发时间: " .. (timer.triggerTime or "None"))
         table.insert(allTimers, timer)
     end
     
+    addon.Utils:Debug("总计时器数量: " .. #allTimers)
+    
     if #allTimers == 0 then
-        addon.Utils:Warning(addon.L.BROADCAST_NO_TIMERS)
+        addon.Utils:Warning("没有可用的计时器进行广播")
         return
     end
     
@@ -387,10 +391,12 @@ function TimerUI:BroadcastToChannel(channelInfo)
         -- 新格式：[16:20]多恩岛(next:12m30s)
         local triggerTime = timer.triggerTime or ""
         local lineText = string.format("[%s]%s(next:%s)", triggerTime, timer.zoneName, timeText)
+        addon.Utils:Debug("构建广播行: " .. lineText)
         table.insert(timerStrings, lineText)
     end
     
     local message = table.concat(timerStrings, "\n") -- 换行分隔
+    addon.Utils:Debug("最终广播消息: " .. message)
     
     -- 发送消息
     local success = false
@@ -402,9 +408,9 @@ function TimerUI:BroadcastToChannel(channelInfo)
     end
     
     if success then
-        addon.Utils:Info(addon.L("BROADCAST_SUCCESS", channelInfo.name))
+        addon.Utils:Info("成功广播到: " .. channelInfo.name)
     else
-        addon.Utils:Warning(addon.L("BROADCAST_FAILED", channelInfo.name))
+        addon.Utils:Warning("广播失败到: " .. channelInfo.name)
     end
 end
 

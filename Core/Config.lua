@@ -6,7 +6,7 @@ local addonName, addon = ...
 -- 默认配置
 local defaultConfig = {
     enabled = true,
-    debugMode = false,
+    debugMode = true, -- 临时启用调试模式来检查广播问题,
     ui = {
         locked = false,
         position = {

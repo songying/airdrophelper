@@ -62,7 +62,7 @@ addon.SYNC_CONFIG = {
     CHANNEL_TYPES = {"RAID", "PARTY"} -- 移除GUILD，只在队伍/团队间同步
 }
 
--- 调试模式
+-- 调试模式默认关闭，可通过配置打开
 addon.DEBUG = false
 
 -- 空投箱子相关配置

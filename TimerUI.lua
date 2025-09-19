@@ -128,6 +128,36 @@ function TimerUI:CreateBroadcastControls()
     
     self.broadcastButton = broadcastButton
     
+    -- 创建 Add 按钮（在左侧与 Send 按钮对应）
+    local addButton = CreateFrame("Button", nil, self.frame, "UIPanelButtonTemplate")
+    addButton:SetSize(50, 22)
+    addButton:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -5)
+    addButton:SetText("Add")
+    
+    -- 调整字体大小
+    local addFont = addButton:GetFontString()
+    if addFont then
+        addFont:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    end
+    
+    -- Add 按钮点击事件
+    addButton:SetScript("OnClick", function()
+        self:ShowManualTimerDialog()
+    end)
+    
+    -- Add 按钮悬停效果
+    addButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(addButton, "ANCHOR_TOP")
+        GameTooltip:SetText("手动添加计时器")
+        GameTooltip:Show()
+    end)
+    
+    addButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    
+    self.addButton = addButton
+    
     -- 创建下拉框
     self:CreateBroadcastDropdown()
 end
@@ -850,4 +880,307 @@ function TimerUI:ShowContextMenu()
     self:SetLocked(not self.isLocked)
     addon.Config:Set("ui.locked", self.isLocked)
     addon.Utils:Info(self.isLocked and addon.L.UI_LOCKED or addon.L.UI_UNLOCKED)
+end
+
+-- 显示手动计时器对话框
+function TimerUI:ShowManualTimerDialog()
+    if self.manualTimerDialog then
+        self.manualTimerDialog:Show()
+        return
+    end
+    
+    -- 创建对话框
+    local dialog = CreateFrame("Frame", nil, UIParent)
+    dialog:SetSize(300, 200)
+    dialog:SetPoint("CENTER")
+    dialog:SetFrameStrata("DIALOG")
+    dialog:SetFrameLevel(1000)
+    
+    -- 对话框背景
+    local bg = dialog:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.8)
+    
+    -- 边框
+    local border = dialog:CreateTexture(nil, "BORDER")
+    border:SetAllPoints()
+    border:SetColorTexture(1, 1, 1, 0.3)
+    
+    -- 内部背景
+    local innerBg = dialog:CreateTexture(nil, "BACKGROUND")
+    innerBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 1, -1)
+    innerBg:SetPoint("BOTTOMRIGHT", dialog, "BOTTOMRIGHT", -1, 1)
+    innerBg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+    
+    -- 标题
+    local title = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    title:SetPoint("TOP", dialog, "TOP", 0, -10)
+    title:SetText("手动添加计时器")
+    
+    -- 获取当前时间和地图
+    local currentTime = date("*t")
+    local currentZone = GetRealZoneText() or "多恩岛"
+    
+    -- 预定义地图列表
+    local predefinedZones = {
+        "多恩岛",
+        "阿兹-卡政特",
+        "鳴響深淵",
+        "聖落之地",
+        "海妖岛",
+        "幽坑城",
+        "凱瑞西"
+    }
+    
+    -- 小时输入框
+    local hourLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hourLabel:SetPoint("TOPLEFT", dialog, "TOPLEFT", 20, -50)
+    hourLabel:SetText("小时:")
+    
+    local hourInput = CreateFrame("EditBox", nil, dialog, "InputBoxTemplate")
+    hourInput:SetSize(50, 20)
+    hourInput:SetPoint("LEFT", hourLabel, "RIGHT", 10, 0)
+    hourInput:SetText(tostring(currentTime.hour))
+    hourInput:SetMaxLetters(2)
+    hourInput:SetAutoFocus(false)
+    
+    -- 分钟输入框
+    local minuteLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    minuteLabel:SetPoint("LEFT", hourInput, "RIGHT", 20, 0)
+    minuteLabel:SetText("分钟:")
+    
+    local minuteInput = CreateFrame("EditBox", nil, dialog, "InputBoxTemplate")
+    minuteInput:SetSize(50, 20)
+    minuteInput:SetPoint("LEFT", minuteLabel, "RIGHT", 10, 0)
+    minuteInput:SetText(tostring(currentTime.min))
+    minuteInput:SetMaxLetters(2)
+    minuteInput:SetAutoFocus(false)
+    
+    -- 地图名称输入框
+    local zoneLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    zoneLabel:SetPoint("TOPLEFT", hourLabel, "BOTTOMLEFT", 0, -30)
+    zoneLabel:SetText("地图:")
+    
+    local zoneInput = CreateFrame("EditBox", nil, dialog, "InputBoxTemplate")
+    zoneInput:SetSize(150, 20)
+    zoneInput:SetPoint("LEFT", zoneLabel, "RIGHT", 10, 0)
+    zoneInput:SetText(currentZone)
+    zoneInput:SetMaxLetters(50)
+    zoneInput:SetAutoFocus(false)
+    
+    -- 地图下拉按钮
+    local zoneDropdownButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    zoneDropdownButton:SetSize(20, 20)
+    zoneDropdownButton:SetPoint("LEFT", zoneInput, "RIGHT", 5, 0)
+    zoneDropdownButton:SetText("▼")
+    
+    -- 创建地图下拉菜单
+    self:CreateZoneDropdown(dialog, zoneInput, predefinedZones)
+    
+    zoneDropdownButton:SetScript("OnClick", function()
+        self:ToggleZoneDropdown()
+    end)
+    
+    -- Save 按钮
+    local saveButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    saveButton:SetSize(80, 25)
+    saveButton:SetPoint("BOTTOMRIGHT", dialog, "BOTTOMRIGHT", -20, 20)
+    saveButton:SetText("Save")
+    
+    -- Cancel 按钮
+    local cancelButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    cancelButton:SetSize(80, 25)
+    cancelButton:SetPoint("RIGHT", saveButton, "LEFT", -10, 0)
+    cancelButton:SetText("Cancel")
+    
+    -- 输入验证和按钮状态更新
+    local function validateInput()
+        local hourText = hourInput:GetText()
+        local minuteText = minuteInput:GetText()
+        local zoneText = zoneInput:GetText()
+        
+        local hourValid = hourText and hourText:match("^%d+$") and tonumber(hourText) >= 0 and tonumber(hourText) <= 23
+        local minuteValid = minuteText and minuteText:match("^%d+$") and tonumber(minuteText) >= 0 and tonumber(minuteText) <= 59
+        local zoneValid = zoneText and zoneText:len() > 0
+        
+        if hourValid and minuteValid and zoneValid then
+            saveButton:Enable()
+            saveButton:SetAlpha(1)
+        else
+            saveButton:Disable()
+            saveButton:SetAlpha(0.5)
+        end
+    end
+    
+    -- 绑定输入验证
+    hourInput:SetScript("OnTextChanged", validateInput)
+    minuteInput:SetScript("OnTextChanged", validateInput)
+    zoneInput:SetScript("OnTextChanged", validateInput)
+    
+    -- 初始验证
+    validateInput()
+    
+    -- 按钮事件
+    saveButton:SetScript("OnClick", function()
+        local hour = tonumber(hourInput:GetText())
+        local minute = tonumber(minuteInput:GetText())
+        local zoneName = zoneInput:GetText()
+        
+        self:CreateManualTimer(hour, minute, zoneName)
+        dialog:Hide()
+    end)
+    
+    cancelButton:SetScript("OnClick", function()
+        dialog:Hide()
+    end)
+    
+    -- ESC 键关闭
+    dialog:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            dialog:Hide()
+        end
+    end)
+    dialog:EnableKeyboard(true)
+    
+    self.manualTimerDialog = dialog
+    dialog:Show()
+end
+
+-- 创建地图下拉菜单
+function TimerUI:CreateZoneDropdown(parent, targetInput, zoneList)
+    local dropdown = CreateFrame("Frame", nil, UIParent)
+    dropdown:SetSize(170, math.min(200, #zoneList * 25 + 10))
+    dropdown:SetPoint("TOPLEFT", targetInput, "BOTTOMLEFT", 0, -2)
+    dropdown:SetFrameStrata("DIALOG")
+    dropdown:SetFrameLevel(1001)
+    dropdown:Hide()
+    
+    -- 下拉框背景
+    local bg = dropdown:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.1, 0.1, 0.1, 0.95)
+    
+    -- 边框
+    local border = dropdown:CreateTexture(nil, "BORDER")
+    border:SetAllPoints()
+    border:SetColorTexture(1, 1, 1, 0.3)
+    
+    -- 创建选项
+    local options = {}
+    for i, zoneName in ipairs(zoneList) do
+        local option = CreateFrame("Button", nil, dropdown)
+        option:SetSize(160, 20)
+        option:SetPoint("TOP", dropdown, "TOP", 0, -5 - (i-1) * 22)
+        
+        -- 选项背景
+        local optionBg = option:CreateTexture(nil, "BACKGROUND")
+        optionBg:SetAllPoints()
+        optionBg:SetColorTexture(0.2, 0.2, 0.2, 0.5)
+        optionBg:Hide()
+        
+        -- 选项文本
+        local optionText = option:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        optionText:SetPoint("LEFT", option, "LEFT", 5, 0)
+        optionText:SetText(zoneName)
+        optionText:SetTextColor(1, 1, 1, 1)
+        
+        -- 鼠标事件
+        option:SetScript("OnEnter", function()
+            optionBg:Show()
+        end)
+        
+        option:SetScript("OnLeave", function()
+            optionBg:Hide()
+        end)
+        
+        option:SetScript("OnClick", function()
+            targetInput:SetText(zoneName)
+            self:HideZoneDropdown()
+        end)
+        
+        table.insert(options, option)
+    end
+    
+    self.zoneDropdown = dropdown
+    self.zoneDropdownOptions = options
+    self.zoneDropdownInput = targetInput
+end
+
+-- 切换地图下拉菜单
+function TimerUI:ToggleZoneDropdown()
+    if not self.zoneDropdown then
+        return
+    end
+    
+    if self.zoneDropdown:IsVisible() then
+        self:HideZoneDropdown()
+    else
+        self:ShowZoneDropdown()
+    end
+end
+
+-- 显示地图下拉菜单
+function TimerUI:ShowZoneDropdown()
+    if not self.zoneDropdown then
+        return
+    end
+    
+    self.zoneDropdown:Show()
+    
+    -- 创建点击捕获器
+    if not self.zoneClickCatcher then
+        self.zoneClickCatcher = CreateFrame("Frame", nil, UIParent)
+        self.zoneClickCatcher:SetAllPoints(UIParent)
+        self.zoneClickCatcher:SetFrameLevel(self.zoneDropdown:GetFrameLevel() - 1)
+        self.zoneClickCatcher:EnableMouse(true)
+        self.zoneClickCatcher:SetScript("OnMouseDown", function()
+            TimerUI:HideZoneDropdown()
+        end)
+    end
+    
+    self.zoneClickCatcher:Show()
+end
+
+-- 隐藏地图下拉菜单
+function TimerUI:HideZoneDropdown()
+    if self.zoneDropdown then
+        self.zoneDropdown:Hide()
+    end
+    
+    if self.zoneClickCatcher then
+        self.zoneClickCatcher:Hide()
+    end
+end
+
+-- 创建手动计时器
+function TimerUI:CreateManualTimer(hour, minute, zoneName)
+    -- 计算目标时间
+    local targetTime = hour * 3600 + minute * 60
+    local currentTime = date("*t")
+    local currentSeconds = currentTime.hour * 3600 + currentTime.min * 60 + currentTime.sec
+    
+    -- 计算到目标旴间的秒数（如果是第二天则加上24小时）
+    local timeToTarget = targetTime - currentSeconds
+    if timeToTarget <= 0 then
+        timeToTarget = timeToTarget + 24 * 3600 -- 第二天
+    end
+    
+    -- 加上 18分12秒 (1092秒)
+    local totalDuration = timeToTarget + 1092
+    
+    -- 创建计时器数据
+    local timerData = {
+        zoneName = zoneName,
+        duration = totalDuration,
+        triggerType = "MANUAL",
+        startTime = GetTime(),
+        triggerTime = string.format("%02d:%02d", hour, minute),
+        expired = false,
+        id = "manual_" .. GetTime() .. "_" .. math.random(1000, 9999)
+    }
+    
+    -- 添加计时器
+    self:AddTimer(timerData)
+    
+    addon.Utils:Info(string.format("手动添加计时器: %s, 目标时间: %02d:%02d", zoneName, hour, minute))
 end

@@ -929,11 +929,11 @@ function TimerUI:ShowManualTimerDialog()
     
     -- 预定义地图列表
     local predefinedZones = {
-        "多恩岛",
-        "阿兹-卡政特",
+        "多恩島",
+        "阿兹-卡罕特",
         "鳴響深淵",
         "聖落之地",
-        "海妖岛",
+        "海妖島",
         "幽坑城",
         "凱瑞西"
     }

@@ -216,6 +216,7 @@ function SyncManager:HandleReceivedAirdrop(airdropData, sender)
             startTime = GetTime() - (airdropData.elapsedTime or 0),
             duration = airdropData.duration,
             triggerType = airdropData.triggerType .. "_SYNC",
+            triggerTime = airdropData.triggerTime or date("%H:%M"), -- 使用同步数据中的触发时间或当前时间
             expired = false,
             fromSync = true,
             sender = sender

@@ -229,6 +229,7 @@ function addon:TriggerAirdrop(triggerType, data)
             startTime = GetTime(),
             duration = duration,
             triggerType = triggerType,
+            triggerTime = date("%H:%M"), -- 添加触发时间字段
             expired = false
         })
     end
@@ -240,6 +241,7 @@ function addon:TriggerAirdrop(triggerType, data)
             timeString = timeString,
             triggerType = triggerType,
             duration = duration,
+            triggerTime = date("%H:%M"), -- 添加触发时间到同步数据
             position = {self.Utils:GetPlayerPosition()}
         })
     end

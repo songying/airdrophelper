@@ -383,32 +383,45 @@ function TimerUI:BroadcastToChannel(channelInfo)
         return
     end
     
-    -- 构建广播消息（每个地图单独占一行）
-    local timerStrings = {}
+    -- 构建广播消息（每个地图单独发送一条消息）
+    local timerMessages = {}
     for _, timer in ipairs(allTimers) do
         local remaining = timer.duration - (GetTime() - timer.startTime)
         local timeText = self:FormatBroadcastTime(remaining)
         -- 新格式：[16:20]多恩岛(next:12m30s)
         local triggerTime = timer.triggerTime or ""
         local lineText = string.format("[%s]%s(next:%s)", triggerTime, timer.zoneName, timeText)
-        addon.Utils:Debug("构建广播行: " .. lineText)
-        table.insert(timerStrings, lineText)
+        addon.Utils:Debug("构建广播消息: " .. lineText)
+        table.insert(timerMessages, lineText)
     end
     
-    local message = table.concat(timerStrings, "\n") -- 换行分隔
-    addon.Utils:Debug("最终广播消息: " .. message)
+    -- 分多条消息发送（解决换行问题）
+    local successCount = 0
+    local totalMessages = #timerMessages
     
-    -- 发送消息
-    local success = false
-    
-    if channelInfo.type == "CHANNEL" then
-        success = addon.Utils:SendChatMessage(message, channelInfo.type, channelInfo.target)
-    else
-        success = addon.Utils:SendChatMessage(message, channelInfo.type)
+    for i, message in ipairs(timerMessages) do
+        local success = false
+        
+        if channelInfo.type == "CHANNEL" then
+            success = addon.Utils:SendChatMessage(message, channelInfo.type, channelInfo.target)
+        else
+            success = addon.Utils:SendChatMessage(message, channelInfo.type)
+        end
+        
+        if success then
+            successCount = successCount + 1
+        end
+        
+        -- 消息间小延迟，防止发送过快
+        if i < totalMessages then
+            C_Timer.After(0.1, function() end) -- 100ms延迟
+        end
     end
     
-    if success then
-        addon.Utils:Info("成功广播到: " .. channelInfo.name)
+    if successCount == totalMessages then
+        addon.Utils:Info(string.format("成功广播%d条消息到: %s", successCount, channelInfo.name))
+    elseif successCount > 0 then
+        addon.Utils:Warning(string.format("部分成功: %d/%d 条消息广播到: %s", successCount, totalMessages, channelInfo.name))
     else
         addon.Utils:Warning("广播失败到: " .. channelInfo.name)
     end
@@ -906,10 +919,10 @@ function TimerUI:ShowManualTimerDialog()
     dialog:SetFrameStrata("DIALOG")
     dialog:SetFrameLevel(1000)
     
-    -- 对话框背景（与主框体保持一致：透明背景）
+    -- 对话框背景（与主框体保持一致：半透明黑色）
     local bg = dialog:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0) -- 透明背景
+    bg:SetColorTexture(0, 0, 0, 0.7) -- 半透明黑色，与主框体一致
     
     -- 边框（与主框体保持一致）
     local border = dialog:CreateTexture(nil, "BORDER")
@@ -917,11 +930,11 @@ function TimerUI:ShowManualTimerDialog()
     border:SetColorTexture(1, 1, 1, 0.3) -- 白色边框，低透明度
     border:SetDrawLayer("BORDER", 1)
     
-    -- 创建内部透明区域
+    -- 内部背景区域（与主背景保持一致）
     local innerBg = dialog:CreateTexture(nil, "BACKGROUND")
     innerBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 1, -1)
     innerBg:SetPoint("BOTTOMRIGHT", dialog, "BOTTOMRIGHT", -1, 1)
-    innerBg:SetColorTexture(0, 0, 0, 0) -- 完全透明
+    innerBg:SetColorTexture(0, 0, 0, 0.7) -- 半透明黑色
     
     -- 标题
     local title = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")

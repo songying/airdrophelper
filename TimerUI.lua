@@ -447,8 +447,10 @@ function TimerUI:AddTimer(timerData)
             self.progressBars[oldTimer.id] = nil
         end
         
-        -- 更新计时器数据并添加触发时间
-        timerData.triggerTime = date("%H:%M") -- 添加触发时间
+        -- 更新计时器数据并添加触发时间（仅在不存在时设置）
+        if not timerData.triggerTime then
+            timerData.triggerTime = date("%H:%M") -- 只有在没有triggerTime时才设置
+        end
         timerData.startTime = GetTime()
         timerData.expired = false
         timerData.id = "timer_" .. GetTime() .. "_" .. math.random(1000, 9999)
@@ -473,8 +475,10 @@ function TimerUI:AddTimer(timerData)
             return false
         end
         
-        -- 设置计时器数据并添加触发时间
-        timerData.triggerTime = date("%H:%M") -- 添加触发时间
+        -- 设置计时器数据并添加触发时间（仅在不存在时设置）
+        if not timerData.triggerTime then
+            timerData.triggerTime = date("%H:%M") -- 只有在没有triggerTime时才设置
+        end
         timerData.startTime = GetTime()
         timerData.expired = false
         timerData.id = "timer_" .. GetTime() .. "_" .. math.random(1000, 9999)
@@ -902,21 +906,22 @@ function TimerUI:ShowManualTimerDialog()
     dialog:SetFrameStrata("DIALOG")
     dialog:SetFrameLevel(1000)
     
-    -- 对话框背景
+    -- 对话框背景（与主框体保持一致：透明背景）
     local bg = dialog:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0.8)
+    bg:SetColorTexture(0, 0, 0, 0) -- 透明背景
     
-    -- 边框
+    -- 边框（与主框体保持一致）
     local border = dialog:CreateTexture(nil, "BORDER")
     border:SetAllPoints()
-    border:SetColorTexture(1, 1, 1, 0.3)
+    border:SetColorTexture(1, 1, 1, 0.3) -- 白色边框，低透明度
+    border:SetDrawLayer("BORDER", 1)
     
-    -- 内部背景
+    -- 创建内部透明区域
     local innerBg = dialog:CreateTexture(nil, "BACKGROUND")
     innerBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 1, -1)
     innerBg:SetPoint("BOTTOMRIGHT", dialog, "BOTTOMRIGHT", -1, 1)
-    innerBg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+    innerBg:SetColorTexture(0, 0, 0, 0) -- 完全透明
     
     -- 标题
     local title = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -1061,10 +1066,10 @@ function TimerUI:CreateZoneDropdown(parent, targetInput, zoneList)
     dropdown:SetFrameLevel(1001)
     dropdown:Hide()
     
-    -- 下拉框背景
+    -- 下拉框背景（不透明，防止后面按钮文字透过来）
     local bg = dropdown:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0.1, 0.1, 0.1, 0.95)
+    bg:SetColorTexture(0.1, 0.1, 0.1, 1.0) -- 完全不透明
     
     -- 边框
     local border = dropdown:CreateTexture(nil, "BORDER")

@@ -241,16 +241,16 @@ function TimerUI:CreateAutoBroadcastSwitch()
         addon.Config:Set("autoBroadcast.enabled", isEnabled)
         updateButtonAppearance()
         
-        local status = isEnabled and "开启" or "关闭"
-        addon.Utils:Info("自动播报已" .. status)
+        local status = isEnabled and "開啓" or "關閉"
+        addon.Utils:Info("自動播報已" .. status)
     end)
     
     -- 悬停提示
     switchButton:SetScript("OnEnter", function()
         GameTooltip:SetOwner(switchButton, "ANCHOR_TOP")
-        local tooltip = isEnabled and "点击关闭自动播报" or "点击开启自动播报"
+        local tooltip = isEnabled and "點擊關閉自動播報" or "點擊開啓自動播報"
         GameTooltip:SetText(tooltip)
-        GameTooltip:AddLine("开启时：触发计时器自动发送到团队/小队/说话频道", 1, 1, 1, true)
+        GameTooltip:AddLine("開啓時：出發計時器自動發送到團隊/小隊/説話頻道", 1, 1, 1, true)
         GameTooltip:Show()
     end)
     
@@ -680,8 +680,13 @@ function TimerUI:CreateProgressBar(timerData)
     bar:SetSize(addon.UI_CONFIG.FRAME_WIDTH - addon.UI_CONFIG.FRAME_PADDING * 2, addon.UI_CONFIG.PROGRESS_BAR_HEIGHT)
     bar:SetPoint("TOPLEFT", 0, yOffset)
     bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    bar:SetMinMaxValues(0, timerData.duration)
-    bar:SetValue(timerData.duration)
+    
+    -- 根据18分12秒(1092秒)作为基准设置进度条范围
+    local baselineDuration = 1092 -- 18分12秒
+    local maxDisplayDuration = math.max(timerData.duration, baselineDuration)
+    
+    bar:SetMinMaxValues(0, maxDisplayDuration)
+    bar:SetValue(timerData.duration) -- 设置为实际剩余时间
     
     -- 进度条背景
     local bg = bar:CreateTexture(nil, "BACKGROUND")

@@ -1,5 +1,5 @@
 -- AirdropHelper Sync Manager
--- 玩家间信息同步模块
+-- 玩家間資訊同步模組
 
 local addonName, addon = ...
 
@@ -14,10 +14,10 @@ function SyncManager:Initialize()
     self.lastSyncTime = {}
     self.syncCooldown = 3 -- 3秒同步冷却时间
     
-    -- 注册通信前缀
+    -- 註冊通信前綴
     C_ChatInfo.RegisterAddonMessagePrefix(addon.SYNC_CONFIG.PREFIX)
     
-    -- 注册事件
+    -- 註冊事件
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("CHAT_MSG_ADDON")
     frame:SetScript("OnEvent", function(self, event, ...)
@@ -34,26 +34,33 @@ function SyncManager:OnAddonMessage(prefix, message, channel, sender)
     if prefix ~= addon.SYNC_CONFIG.PREFIX then
         return
     end
-    
+
     if sender == UnitName("player") then
         return -- 忽略自己的消息
     end
-    
+
+    -- 已禁用接收同步信息，防止跨伺服器干擾
+    addon.Utils:Debug("已禁用接收同步信息，防止跨伺服器干擾:", sender, channel)
+    return
+
+    --[[
+    -- 以下代码被禁用 - 不再接收其他插件的同步数据
     -- 验证发送者是否在同一队伍/团队中
     if not self:IsValidSender(sender, channel) then
         addon.Utils:Debug(addon.L("SYNC_IGNORE_MESSAGE", sender, channel))
         return
     end
-    
+
     addon.Utils:Debug(addon.L("SYNC_RECEIVE_MESSAGE", sender, channel, string.sub(message, 1, 50)))
-    
+
     local success, data = self:DecodeMessage(message)
     if not success then
         addon.Utils:Debug(addon.L("SYNC_DECODE_FAILED", message))
         return
     end
-    
+
     self:ProcessSyncMessage(data, sender, channel)
+    --]]
 end
 
 -- 验证发送者是否是有效的队伍/团队成员

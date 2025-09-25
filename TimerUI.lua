@@ -1,5 +1,5 @@
 -- AirdropHelper Timer UI
--- 倒计时UI界面模块
+-- 倒計時UI介面模組
 
 local addonName, addon = ...
 
@@ -14,11 +14,15 @@ function TimerUI:Initialize()
     self.progressBars = {}
     self.isVisible = true
     self.isLocked = addon.Config:Get("ui.locked") or false
-    
+
     self:CreateMainFrame()
     self:UpdatePosition()
+
+    -- 載入儲存的計時器資料
+    self:LoadTimersFromDatabase()
+
     self:StartUpdateTimer()
-    
+
     addon.Utils:Debug(addon.L.TIMER_UI_INITIALIZED)
 end
 
@@ -148,7 +152,7 @@ function TimerUI:CreateBroadcastControls()
     -- Add 按钮悬停效果
     addButton:SetScript("OnEnter", function()
         GameTooltip:SetOwner(addButton, "ANCHOR_TOP")
-        GameTooltip:SetText("手动添加计时器")
+        GameTooltip:SetText("手動添加計時器")
         GameTooltip:Show()
     end)
     
@@ -469,31 +473,27 @@ end
 -- 广播到指定频道
 function TimerUI:BroadcastToChannel(channelInfo)
     -- 检查是否有任何计时器（包括已过期的负数计时器）
-    local allTimers = {}
-    for _, timer in ipairs(self.timers) do
-        -- 调试输出：显示所有计时器信息
-        addon.Utils:Debug("广播检查计时器: " .. (timer.zoneName or "Unknown") .. ", 类型: " .. (timer.triggerType or "Unknown") .. ", 触发时间: " .. (timer.triggerTime or "None"))
-        table.insert(allTimers, timer)
-    end
-    
-    addon.Utils:Debug("总计时器数量: " .. #allTimers)
-    
-    if #allTimers == 0 then
+    if #self.timers == 0 then
         addon.Utils:Warning("没有可用的计时器进行广播")
         return
     end
-    
-    -- 构建广播消息（每个地图单独发送一条消息）
+
+    -- 确保计时器按显示顺序排序（剩余时间从少到多）
+    self:SortTimersByRemainingTime()
+
+    -- 构建广播消息（按界面显示顺序，每个地图单独发送一条消息）
     local timerMessages = {}
-    for _, timer in ipairs(allTimers) do
+    for _, timer in ipairs(self.timers) do
         local remaining = timer.duration - (GetTime() - timer.startTime)
         local timeText = self:FormatBroadcastTime(remaining)
         -- 新格式：[16:20]多恩岛(next:12m30s)
         local triggerTime = timer.triggerTime or ""
         local lineText = string.format("[%s]%s(next:%s)", triggerTime, timer.zoneName, timeText)
-        addon.Utils:Debug("构建广播消息: " .. lineText)
+        addon.Utils:Debug("构建广播消息: " .. lineText .. " (剩余时间: " .. remaining .. "秒)")
         table.insert(timerMessages, lineText)
     end
+
+    addon.Utils:Debug("按顺序广播计时器数量: " .. #timerMessages)
     
     -- 分多条消息发送（解决换行问题）
     local successCount = 0
@@ -582,7 +582,10 @@ function TimerUI:AddTimer(timerData)
         if timerData.triggerType ~= "MANUAL" then
             self:AutoBroadcastTimer(timerData)
         end
-        
+
+        -- 保存计时器数据
+        self:SaveTimersToDatabase()
+
         addon.Utils:Debug(addon.L("TIMER_UPDATED", timerData.zoneName, timerData.triggerType))
         return true
     else
@@ -614,7 +617,10 @@ function TimerUI:AddTimer(timerData)
         if timerData.triggerType ~= "MANUAL" then
             self:AutoBroadcastTimer(timerData)
         end
-        
+
+        -- 保存计时器数据
+        self:SaveTimersToDatabase()
+
         addon.Utils:Debug(addon.L("TIMER_ADDED", timerData.zoneName, timerData.triggerType))
         return true
     end
@@ -653,7 +659,10 @@ function TimerUI:RemoveTimer(timerId)
     -- 重新排列剩余的进度条
     self:RearrangeProgressBars()
     self:UpdateFrameSize()
-    
+
+    -- 保存计时器数据
+    self:SaveTimersToDatabase()
+
     addon.Utils:Debug(addon.L("TIMER_REMOVED", timer.zoneName))
     return true
 end
@@ -832,16 +841,16 @@ end
 
 -- 清理过期计时器
 function TimerUI:CleanupExpiredTimers()
-    -- 保留过期计时器显示30秒后再清理
+    -- 自动删除过期超过1小时(-60分钟)的计时器
     local currentTime = GetTime()
     local toRemove = {}
-    
+
     for i, timer in ipairs(self.timers) do
-        if timer.expired then
-            local expiredTime = currentTime - (timer.startTime + timer.duration)
-            if expiredTime > 30 then -- 30秒后清理
-                table.insert(toRemove, 1, i) -- 逆序插入，从后往前删除
-            end
+        local remaining = timer.duration - (currentTime - timer.startTime)
+        -- 清理过期超过1小时的计时器
+        if remaining <= -3600 then -- -60分钟 = -3600秒
+            table.insert(toRemove, 1, i) -- 逆序插入，从后往前删除
+            addon.Utils:Debug("清理过期计时器: " .. timer.zoneName .. " (过期时间: " .. math.floor(-remaining/60) .. "分钟)")
         end
     end
     
@@ -861,6 +870,9 @@ function TimerUI:CleanupExpiredTimers()
     if #toRemove > 0 then
         self:RearrangeProgressBars()
         self:UpdateFrameSize()
+        -- 保存更新后的计时器数据
+        self:SaveTimersToDatabase()
+        addon.Utils:Info("自动清理了 " .. #toRemove .. " 个过期超过1小时的计时器")
     end
 end
 
@@ -1321,6 +1333,109 @@ function TimerUI:CreateManualTimer(hour, minute, zoneName)
     
     -- 添加计时器
     self:AddTimer(timerData)
-    
+
     addon.Utils:Info(string.format("手动添加计时器: %s, 目标时间: %02d:%02d", zoneName, hour, minute))
+end
+
+-- 保存计时器数据到数据库
+function TimerUI:SaveTimersToDatabase()
+    if not self.timers then
+        return
+    end
+
+    -- 初始化保存的数据结构
+    if not addon.Config:Get("savedTimers") then
+        addon.Config:Set("savedTimers", {})
+    end
+
+    local savedData = {}
+    local currentTime = GetTime()
+
+    for _, timer in ipairs(self.timers) do
+        -- 只保存未过期超过1小时的计时器
+        local remaining = timer.duration - (currentTime - timer.startTime)
+        if remaining > -3600 then -- 只保存过期不超过1小时的计时器
+            table.insert(savedData, {
+                zoneName = timer.zoneName,
+                duration = timer.duration,
+                triggerType = timer.triggerType,
+                triggerTime = timer.triggerTime,
+                startTime = timer.startTime,
+                expired = timer.expired,
+                saveTime = currentTime -- 记录保存时间
+            })
+        end
+    end
+
+    addon.Config:Set("savedTimers", savedData)
+    addon.Utils:Debug("保存了 " .. #savedData .. " 个计时器到数据库")
+end
+
+-- 从数据库加载计时器数据
+function TimerUI:LoadTimersFromDatabase()
+    local savedData = addon.Config:Get("savedTimers")
+    if not savedData or #savedData == 0 then
+        return
+    end
+
+    local loadedCount = 0
+    local currentTime = GetTime()
+
+    for _, timerData in ipairs(savedData) do
+        -- 检查保存的计时器是否还有效（不超过1小时）
+        local timeSinceSave = currentTime - (timerData.saveTime or 0)
+        if timeSinceSave <= 3600 then -- 只加载保存时间不超过1小时的计时器
+            -- 调整startTime以适应加载时的时间差
+            local adjustedTimer = {
+                id = addon.Utils:GenerateID(),
+                zoneName = timerData.zoneName,
+                duration = timerData.duration,
+                triggerType = timerData.triggerType,
+                triggerTime = timerData.triggerTime,
+                startTime = timerData.startTime,
+                expired = timerData.expired
+            }
+
+            table.insert(self.timers, adjustedTimer)
+            loadedCount = loadedCount + 1
+        end
+    end
+
+    if loadedCount > 0 then
+        -- 排序并创建UI
+        self:SortTimersByRemainingTime()
+        for _, timer in ipairs(self.timers) do
+            self:CreateProgressBar(timer)
+        end
+        self:RearrangeProgressBars()
+        self:UpdateFrameSize()
+
+        addon.Utils:Info("从数据库加载了 " .. loadedCount .. " 个计时器")
+    end
+
+    -- 清理过期的保存数据
+    self:CleanupSavedTimers()
+end
+
+-- 清理过期的保存数据
+function TimerUI:CleanupSavedTimers()
+    local savedData = addon.Config:Get("savedTimers")
+    if not savedData then
+        return
+    end
+
+    local currentTime = GetTime()
+    local cleanData = {}
+
+    for _, timerData in ipairs(savedData) do
+        local timeSinceSave = currentTime - (timerData.saveTime or 0)
+        if timeSinceSave <= 3600 then -- 保留1小时内的数据
+            table.insert(cleanData, timerData)
+        end
+    end
+
+    if #cleanData < #savedData then
+        addon.Config:Set("savedTimers", cleanData)
+        addon.Utils:Debug("清理了 " .. (#savedData - #cleanData) .. " 个过期的保存计时器")
+    end
 end

@@ -1,13 +1,13 @@
 -- AirdropHelper Main File
--- 主插件文件
+-- 主外掛文件
 
 local addonName, addon = ...
 
--- 创建主框架
+-- 創建主框架
 local frame = CreateFrame("Frame", "AirdropHelperFrame")
 addon.frame = frame
 
--- 事件处理函数
+-- 事件處理函數
 local function OnEvent(self, event, ...)
     if event == "ADDON_LOADED" then
         local loadedAddonName = ...
@@ -29,98 +29,98 @@ local function OnEvent(self, event, ...)
     end
 end
 
--- 注册事件
+-- 註冊事件
 frame:SetScript("OnEvent", OnEvent)
 frame:RegisterEvent("ADDON_LOADED")
 
--- 插件初始化
+-- 外掛初始化
 function addon:OnAddonLoaded()
-    -- 初始化配置
+    -- 初始化設定
     self.Config:Init()
     
-    -- 初始化战争模式状态
+    -- 初始化戰爭模式狀態
     self.warModeEnabled = false
     
-    -- 检查插件是否启用
+    -- 檢查外掛是否啟用
     if not self.Config:IsEnabled() then
         self.Utils:Info(addon.L.ADDON_DISABLED)
         return
     end
     
-    -- 初始化各个模块
+    -- 初始化各個模組
     self:InitializeModules()
     
-    -- 注册其他事件
+    -- 註冊其他事件
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     frame:RegisterEvent("CHAT_MSG_MONSTER_SAY")
-    frame:RegisterEvent("PLAYER_FLAGS_CHANGED") -- 监听战争模式变化
-    -- 重新启用地图标记事件，监控"戰爭補給箱"
+    frame:RegisterEvent("PLAYER_FLAGS_CHANGED") -- 監聽戰爭模式變化
+    -- 重新啟用地圖標記事件，監控"戰爭補給箱"
     frame:RegisterEvent("VIGNETTE_MINIMAP_UPDATED")
     
-    -- 初始化同步系统
+    -- 初始化同步系統
     if self.Config:IsSyncEnabled() then
         self.SyncManager:Initialize()
     end
     
     self.Utils:Info(addon.L("ADDON_LOADED", self.VERSION))
     
-    -- 输出本地化信息
+    -- 輸出本地化資訊
     self.Utils:Debug("Localization loaded for locale:", GetLocale())
     
-    -- 检查依赖
+    -- 檢查相依性
     local missingDeps = self.Utils:CheckDependencies()
     if #missingDeps > 0 then
-        self.Utils:Warning("缺少依赖: " .. table.concat(missingDeps, ", "))
+        self.Utils:Warning("缺少相依性: " .. table.concat(missingDeps, ", "))
     end
 end
 
--- 初始化模块
+-- 初始化模組
 function addon:InitializeModules()
-    -- 初始化NPC监控器
+    -- 初始化NPC監控器
     if self.NPCMonitor then
         self.NPCMonitor:Initialize()
     end
     
-    -- 初始化通知系统
+    -- 初始化通知系統
     if self.NotificationSystem then
         self.NotificationSystem:Initialize()
     end
     
-    -- 初始化计时器UI
+    -- 初始化計時器UI
     if self.TimerUI then
         self.TimerUI:Initialize()
     end
     
-    -- 初始化空投检测器
+    -- 初始化空投檢測器
     if self.AirdropDetector then
         self.AirdropDetector:Initialize()
     end
 end
 
--- 玩家进入世界
+-- 玩家進入世界
 function addon:OnPlayerEnteringWorld()
-    self.Utils:Debug("玩家进入世界")
+    self.Utils:Debug("玩家進入世界")
     
-    -- 检查战争模式状态
+    -- 檢查戰爭模式狀態
     self:CheckWarModeStatus()
     
-    -- 不重置计时器！保持其他地图的计时器继续运行
-    -- 只更新当前区域信息
+    -- 不重置計時器！保持其他地圖的計時器繼續運行
+    -- 只更新目前區域資訊
     self.currentZone = self.Utils:GetCurrentZoneName()
-    self.Utils:Debug("当前地图:", self.currentZone)
+    self.Utils:Debug("目前地圖:", self.currentZone)
 end
 
--- 区域变化
+-- 區域變化
 function addon:OnZoneChanged()
     local newZone = self.Utils:GetCurrentZoneName()
     local oldZone = self.currentZone
     
     self.currentZone = newZone
-    self.Utils:Debug("区域变化:", oldZone, "->", newZone)
+    self.Utils:Debug("區域變化:", oldZone, "->", newZone)
     
-    -- 计时器UI不需要处理区域变化，让所有地图的计时器继续运行
-    -- 只通知需要清理状态的模块
+    -- 計時器UI不需要處理區域變化，讓所有地圖的計時器繼續運行
+    -- 只通知需要清理狀態的模組
     if self.NPCMonitor then
         self.NPCMonitor:OnZoneChanged(newZone, oldZone)
     end
@@ -129,7 +129,7 @@ function addon:OnZoneChanged()
         self.AirdropDetector:OnZoneChanged(newZone, oldZone)
     end
     
-    -- 显示当前地图上的计时器状态（调试信息）
+    -- 顯示目前地圖上的計時器狀態（除錯資訊）
     if self.TimerUI and addon.DEBUG then
         local currentZoneTimers = 0
         local totalTimers = #self.TimerUI.timers
@@ -138,16 +138,16 @@ function addon:OnZoneChanged()
                 currentZoneTimers = currentZoneTimers + 1
             end
         end
-        self.Utils:Debug(string.format("地图 [%s] 计时器: %d个, 总计时器: %d个", newZone, currentZoneTimers, totalTimers))
+        self.Utils:Debug(string.format("地圖 [%s] 計時器: %d個, 總計時器: %d個", newZone, currentZoneTimers, totalTimers))
     end
 end
 
--- 玩家标志变化（包括战争模式）
+-- 玩家標誌變化（包括戰爭模式）
 function addon:OnPlayerFlagsChanged()
     self:CheckWarModeStatus()
 end
 
--- 检查战争模式状态
+-- 檢查戰爭模式狀態
 function addon:CheckWarModeStatus()
     local isWarModeEnabled = self.Utils:IsWarModeEnabled()
     
@@ -163,47 +163,47 @@ function addon:CheckWarModeStatus()
             self.Utils:Info(addon.L.ADDON_DEACTIVATED)
             if self.TimerUI then
                 self.TimerUI:Hide()
-                -- 不清理计时器！只是隐藏界面，让计时器在后台继续运行
-                -- 当重新开启战争模式时，之前的计时器依然有效
+                -- 不清理計時器！只是隱藏介面，讓計時器在後台繼續運行
+                -- 當重新開啟戰爭模式時，之前的計時器依然有效
             end
         end
     end
 end
 
--- 检查插件是否应该工作
+-- 檢查外掛是否應該工作
 function addon:IsActive()
     return self.Config:IsEnabled() and self.warModeEnabled
 end
 
--- NPC说话事件
+-- NPC說話事件
 function addon:OnNPCSpeak(message, sender)
     if not self:IsActive() then
         return
     end
     
-    self.Utils:Debug("NPC说话:", sender, "->", message)
+    self.Utils:Debug("NPC說話:", sender, "->", message)
     
-    -- 传递给NPC监控器处理
+    -- 傳遞給NPC監控器處理
     if self.NPCMonitor then
         self.NPCMonitor:ProcessNPCMessage(message, sender)
     end
 end
 
--- 地图标记更新事件
+-- 地圖標記更新事件
 function addon:OnVignetteUpdated(vignetteGUID)
     if not self:IsActive() then
         return
     end
     
-    self.Utils:Debug("地图标记更新:", vignetteGUID)
+    self.Utils:Debug("地圖標記更新:", vignetteGUID)
     
-    -- 传递给空投检测器处理
+    -- 傳遞給空投檢測器處理
     if self.AirdropDetector then
         self.AirdropDetector:ProcessVignette(vignetteGUID)
     end
 end
 
--- 触发空投事件
+-- 觸發空投事件
 function addon:TriggerAirdrop(triggerType, data)
     if not self:IsActive() then
         return
@@ -213,15 +213,15 @@ function addon:TriggerAirdrop(triggerType, data)
     local timeString = data.timeString or self.Utils:GetTimeString()
     local duration = data.duration or (triggerType == "NPC" and self.TIMER_CONFIG.NPC_TRIGGER_DURATION or self.TIMER_CONFIG.VISUAL_TRIGGER_DURATION)
     
-    self.Utils:Debug("触发空投:", triggerType, zoneName, timeString)
+    self.Utils:Debug("觸發空投:", triggerType, zoneName, timeString)
     
-    -- 发送通知
+    -- 發送通知
     if self.NotificationSystem and self.Config:IsNotificationEnabled() then
         local message = string.format("%s %s %s", self.L.AIRDROP_DETECTED, zoneName, timeString)
         self.NotificationSystem:SendNotification(message)
     end
     
-    -- 添加计时器
+    -- 添加計時器
     if self.TimerUI then
         self.TimerUI:AddTimer({
             id = self.Utils:GenerateID(),
@@ -229,28 +229,28 @@ function addon:TriggerAirdrop(triggerType, data)
             startTime = GetTime(),
             duration = duration,
             triggerType = triggerType,
-            triggerTime = date("%H:%M"), -- 添加触发时间字段
+            triggerTime = date("%H:%M"), -- 添加觸發時間字段
             expired = false
         })
     end
     
-    -- 同步给其他玩家
+    -- 同步給其他玩家
     if self.SyncManager and self.Config:IsSyncEnabled() then
         self.SyncManager:ShareAirdrop({
             zoneName = zoneName,
             timeString = timeString,
             triggerType = triggerType,
             duration = duration,
-            triggerTime = date("%H:%M"), -- 添加触发时间到同步数据
+            triggerTime = date("%H:%M"), -- 添加觸發時間到同步資料
             position = {self.Utils:GetPlayerPosition()}
         })
     end
     
-    -- 播放声音提醒
+    -- 播放聲音提醒
     self.Utils:PlaySound()
 end
 
--- 斜杠命令处理
+-- 斜線命令處理
 SLASH_AIRDROPHELPER1 = "/airdrophelper"
 SLASH_AIRDROPHELPER2 = "/adh"
 
@@ -283,30 +283,30 @@ function SlashCmdList.AIRDROPHELPER(msg)
         if addon.TimerUI then
             addon.TimerUI:SetLocked(true)
         end
-        addon.Utils:Info("窗口已锁定")
+        addon.Utils:Info("視窗已鎖定")
     elseif command == "unlock" then
         addon.Config:Set("ui.locked", false)
         if addon.TimerUI then
             addon.TimerUI:SetLocked(false)
         end
-        addon.Utils:Info("窗口已解锁")
+        addon.Utils:Info("視窗已解鎖")
     elseif command == "reset" then
         addon.Config:Reset()
         ReloadUI()
     elseif command == "debug" then
         local newDebugState = not addon.Config:Get("debugMode")
         addon.Config:Set("debugMode", newDebugState)
-        addon.Utils:Info("调试模式:", newDebugState and "开启" or "关闭")
+        addon.Utils:Info("除錯模式:", newDebugState and "開啟" or "關閉")
     elseif command == "test" then
         if addon:IsActive() then
             addon:TriggerAirdrop("TEST", {
-                zoneName = "测试区域",
+                zoneName = "測試區域",
                 timeString = addon.Utils:GetTimeString(),
-                duration = 60 -- 1分钟测试
+                duration = 60 -- 1分鐘測試
             })
-            addon.Utils:Info("测试空投已触发")
+            addon.Utils:Info("測試空投已觸發")
         else
-            addon.Utils:Warning("插件未激活 - 需要开启战争模式")
+            addon.Utils:Warning("外掛未啟動 - 需要開啟戰爭模式")
         end
     elseif command == "detector" then
         if args == "on" then
@@ -326,15 +326,15 @@ function SlashCmdList.AIRDROPHELPER(msg)
             addon.Utils:Info(addon.L("DETECTOR_STATUS", status))
         end
     elseif command == "status" then
-        local warModeStatus = addon.warModeEnabled and "开启" or "关闭"
-        local activeStatus = addon:IsActive() and "激活" or "未激活"
-        addon.Utils:Info("战争模式: " .. warModeStatus)
-        addon.Utils:Info("插件状态: " .. activeStatus)
+        local warModeStatus = addon.warModeEnabled and "開啟" or "關閉"
+        local activeStatus = addon:IsActive() and "啟動" or "未啟動"
+        addon.Utils:Info("戰爭模式: " .. warModeStatus)
+        addon.Utils:Info("外掛狀態: " .. activeStatus)
         
         if addon.TimerUI and #addon.TimerUI.timers > 0 then
-            addon.Utils:Info("当前计时器总数: " .. #addon.TimerUI.timers .. "个")
+            addon.Utils:Info("目前計時器總數: " .. #addon.TimerUI.timers .. "個")
             
-            -- 按地图分组显示计时器
+            -- 按地圖分組顯示計時器
             local zoneTimers = {}
             for _, timer in ipairs(addon.TimerUI.timers) do
                 if not zoneTimers[timer.zoneName] then
@@ -347,12 +347,12 @@ function SlashCmdList.AIRDROPHELPER(msg)
             
             for zoneName, count in pairs(zoneTimers) do
                 if count > 0 then
-                    local status = zoneName == addon.currentZone and "(当前地图)" or ""
-                    addon.Utils:Info("  " .. zoneName .. ": " .. count .. "个计时器 " .. status)
+                    local status = zoneName == addon.currentZone and "(目前地圖)" or ""
+                    addon.Utils:Info("  " .. zoneName .. ": " .. count .. "個計時器 " .. status)
                 end
             end
         else
-            addon.Utils:Info("当前没有活跃的计时器")
+            addon.Utils:Info("目前沒有活躍的計時器")
         end
     else
         addon.Utils:Error("未知命令:", command)

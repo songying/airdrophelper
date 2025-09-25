@@ -1,9 +1,9 @@
 -- AirdropHelper Constants
--- 常量定义文件
+-- 常數定義文件
 
 local addonName, addon = ...
 
--- 插件版本信息
+-- 外掛版本資訊
 addon.VERSION = "1.0.0"
 addon.BUILD = "110200"
 

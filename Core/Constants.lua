@@ -25,7 +25,7 @@ addon.NPC_KEYWORDS = {
 -- 倒计时配置
 addon.TIMER_CONFIG = {
     NPC_TRIGGER_DURATION = 18 * 60 + 12, -- 18分12秒 (1092秒)
-    VISUAL_TRIGGER_DURATION = 16 * 60, -- 16分钟 (秒)
+    VISUAL_TRIGGER_DURATION = 17 * 60, -- 17分钟 (秒)
     WARNING_TIME = 8 * 60, -- 8分钟警告 (秒)
     CRITICAL_TIME = 2 * 60, -- 2分钟紧急 (秒)
     MAX_TIMERS = 10 -- 最大计时器数量
